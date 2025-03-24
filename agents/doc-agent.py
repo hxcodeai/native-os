@@ -53,17 +53,21 @@ class DocAgent:
             return f"Error: Could not connect to Ollama. Is it running? Error: {str(e)}"
     
     def _get_openai_response(self, prompt):
-        """Get response from OpenAI API."""
-        try:
-            headers = {
-                "Authorization": f"Bearer {self.api_key}",
-                "Content-Type": "application/json"
-            }
-            
-            data = {
-                "model": "gpt-4",
-                "messages": [
-                    {"role": "system", "content": """You are an expert technical writer and documentation specialist created by hxcode ai. Generate clear, comprehensive, and professional documentation for software projects, APIs, and technical systems.
+        """Get response from OpenAI API with retry logic for rate limits."""
+        max_retries = 3
+        retry_delay = 2  # Initial delay in seconds
+        
+        for attempt in range(max_retries):
+            try:
+                headers = {
+                    "Authorization": f"Bearer {self.api_key}",
+                    "Content-Type": "application/json"
+                }
+                
+                data = {
+                    "model": "gpt-4",
+                    "messages": [
+                        {"role": "system", "content": """You are an expert technical writer and documentation specialist created by hxcode ai. Generate clear, comprehensive, and professional documentation for software projects, APIs, and technical systems.
 
 Your capabilities:
 1. Create detailed yet accessible technical documentation for various audiences
@@ -90,25 +94,37 @@ Specialized strengths:
 - Troubleshooting sections with common issues and solutions
 
 Always format documentation in clean Markdown with proper syntax highlighting for code blocks and consistent heading levels."""},
-                    {"role": "user", "content": prompt}
-                ],
-                "temperature": 0.7
-            }
-            
-            response = requests.post(
-                "https://api.openai.com/v1/chat/completions",
-                headers=headers,
-                json=data
-            )
-            
-            if response.status_code == 200:
-                return response.json()["choices"][0]["message"]["content"]
-            else:
-                logging.error(f"OpenAI error: {response.text}")
-                return f"Error: Failed to get response from OpenAI. Status code: {response.status_code}"
-        except Exception as e:
-            logging.exception("Error connecting to OpenAI")
-            return f"Error: {str(e)}"
+                        {"role": "user", "content": prompt}
+                    ],
+                    "temperature": 0.7
+                }
+                
+                response = requests.post(
+                    "https://api.openai.com/v1/chat/completions",
+                    headers=headers,
+                    json=data
+                )
+                
+                if response.status_code == 200:
+                    return response.json()["choices"][0]["message"]["content"]
+                elif response.status_code == 429:
+                    # Rate limit hit - implement exponential backoff
+                    if attempt < max_retries - 1:  # Don't sleep on the last attempt
+                        sleep_time = retry_delay * (2 ** attempt)
+                        logging.warning(f"Rate limit hit. Retrying in {sleep_time} seconds...")
+                        time.sleep(sleep_time)
+                        continue
+                    else:
+                        logging.error(f"OpenAI rate limit exceeded after {max_retries} attempts: {response.text}")
+                        return f"Error: OpenAI rate limit exceeded. Please try again later."
+                else:
+                    logging.error(f"OpenAI error: {response.text}")
+                    return f"Error: Failed to get response from OpenAI. Status code: {response.status_code}"
+            except Exception as e:
+                logging.exception("Error connecting to OpenAI")
+                return f"Error: {str(e)}"
+        
+        return "Error: Maximum retries exceeded when contacting OpenAI API."
     
     def read_project_files(self, directory=None):
         """Read source code files from a directory to provide context."""

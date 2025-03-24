@@ -52,17 +52,21 @@ class CodeAgent:
             return f"Error: Could not connect to Ollama. Is it running? Error: {str(e)}"
     
     def _get_openai_response(self, prompt):
-        """Get response from OpenAI API."""
-        try:
-            headers = {
-                "Authorization": f"Bearer {self.api_key}",
-                "Content-Type": "application/json"
-            }
-            
-            data = {
-                "model": "gpt-4",
-                "messages": [
-                    {"role": "system", "content": """You are an expert code generation assistant created by hxcode ai. Generate complete, production-ready code based on user requests.
+        """Get response from OpenAI API with retry logic for rate limits."""
+        max_retries = 3
+        retry_delay = 2  # Initial delay in seconds
+        
+        for attempt in range(max_retries):
+            try:
+                headers = {
+                    "Authorization": f"Bearer {self.api_key}",
+                    "Content-Type": "application/json"
+                }
+                
+                data = {
+                    "model": "gpt-4",
+                    "messages": [
+                        {"role": "system", "content": """You are an expert code generation assistant created by hxcode ai. Generate complete, production-ready code based on user requests.
 
 Your capabilities:
 1. Write robust, efficient, and well-documented code
@@ -103,25 +107,37 @@ Specialized expertise:
 - AI/ML integrations: data pipelines, model serving, embeddings
 
 You have deep expertise in Python, JavaScript, TypeScript, React, Node.js, Go, Rust, Java, C#, and many other languages and frameworks."""},
-                    {"role": "user", "content": prompt}
-                ],
-                "temperature": 0.7
-            }
-            
-            response = requests.post(
-                "https://api.openai.com/v1/chat/completions",
-                headers=headers,
-                json=data
-            )
-            
-            if response.status_code == 200:
-                return response.json()["choices"][0]["message"]["content"]
-            else:
-                logging.error(f"OpenAI error: {response.text}")
-                return f"Error: Failed to get response from OpenAI. Status code: {response.status_code}"
-        except Exception as e:
-            logging.exception("Error connecting to OpenAI")
-            return f"Error: {str(e)}"
+                        {"role": "user", "content": prompt}
+                    ],
+                    "temperature": 0.7
+                }
+                
+                response = requests.post(
+                    "https://api.openai.com/v1/chat/completions",
+                    headers=headers,
+                    json=data
+                )
+                
+                if response.status_code == 200:
+                    return response.json()["choices"][0]["message"]["content"]
+                elif response.status_code == 429:
+                    # Rate limit hit - implement exponential backoff
+                    if attempt < max_retries - 1:  # Don't sleep on the last attempt
+                        sleep_time = retry_delay * (2 ** attempt)
+                        logging.warning(f"Rate limit hit. Retrying in {sleep_time} seconds...")
+                        time.sleep(sleep_time)
+                        continue
+                    else:
+                        logging.error(f"OpenAI rate limit exceeded after {max_retries} attempts: {response.text}")
+                        return f"Error: OpenAI rate limit exceeded. Please try again later."
+                else:
+                    logging.error(f"OpenAI error: {response.text}")
+                    return f"Error: Failed to get response from OpenAI. Status code: {response.status_code}"
+            except Exception as e:
+                logging.exception("Error connecting to OpenAI")
+                return f"Error: {str(e)}"
+        
+        return "Error: Maximum retries exceeded when contacting OpenAI API."
     
     def generate_code(self, prompt):
         """Generate code based on the given prompt."""
@@ -259,7 +275,7 @@ You have deep expertise in Python, JavaScript, TypeScript, React, Node.js, Go, R
         
         return saved_files
     
-    def run(self, prompt):
+    def run(self, prompt, interactive=True):
         """Run the code generation process."""
         # Generate code
         response = self.generate_code(prompt)
@@ -285,33 +301,44 @@ You have deep expertise in Python, JavaScript, TypeScript, React, Node.js, Go, R
             print("   ...")
             print()
         
-        # Ask for confirmation
-        confirm = input("Save these files to disk? (y/n): ").lower()
-        if confirm.startswith('y'):
+        # Default target directory
+        target_dir = self.output_dir
+        
+        if interactive:
+            # Ask for confirmation
+            print("Save these files to disk? (y/n): ", end="")
+            confirm = input().lower()
+            if not confirm.startswith('y'):
+                print("Files not saved.")
+                return json.dumps({
+                    "success": False,
+                    "message": "Code generation completed, but files were not saved (user canceled)"
+                })
+                
             # Get target directory
-            target_dir = input(f"Enter target directory (default: {self.output_dir}): ").strip()
-            if not target_dir:
-                target_dir = self.output_dir
-            
-            # Save the files
-            saved_files = self.save_files(files, target_dir)
-            
+            print(f"Enter target directory (default: {self.output_dir}): ", end="")
+            user_dir = input().strip()
+            if user_dir:
+                target_dir = user_dir
+        else:
+            # Non-interactive mode automatically saves with a timestamped directory
+            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+            target_dir = os.path.join(self.output_dir, f"generated_{timestamp}")
+        
+        # Save the files
+        saved_files = self.save_files(files, target_dir)
+        
+        if interactive:
             print(f"\nSaved {len(saved_files)} files to {target_dir}")
             for file_path in saved_files:
                 print(f"- {file_path}")
-            
-            # Return result as JSON
-            return json.dumps({
-                "success": True,
-                "message": f"Generated and saved {len(saved_files)} files to {target_dir}",
-                "files": saved_files
-            })
-        else:
-            print("Files not saved.")
-            return json.dumps({
-                "success": False,
-                "message": "Code generation completed, but files were not saved (user canceled)"
-            })
+        
+        # Return result as JSON
+        return json.dumps({
+            "success": True,
+            "message": f"Generated and saved {len(saved_files)} files to {target_dir}",
+            "files": saved_files
+        })
     
     def test(self):
         """Run a test to check if the agent is working."""
@@ -339,20 +366,26 @@ def main():
     parser = argparse.ArgumentParser(description="Native OS Code Generation Agent")
     parser.add_argument("prompt", nargs="?", help="The code generation prompt")
     parser.add_argument("--test", action="store_true", help="Run a test to check if the agent is working")
+    parser.add_argument("--interactive", action="store_true", help="Run in interactive mode with user prompts")
     args = parser.parse_args()
     
     agent = CodeAgent()
     
+    # Use non-interactive mode by default when called from CLI tool or pipe
+    interactive_mode = False
+    if args.interactive:
+        interactive_mode = True
+    
     if args.test:
         agent.test()
     elif args.prompt:
-        result = agent.run(args.prompt)
+        result = agent.run(args.prompt, interactive=interactive_mode)
         print(result)
     else:
         # If no prompt is provided and not testing, read from stdin
         prompt = sys.stdin.read().strip()
         if prompt:
-            result = agent.run(prompt)
+            result = agent.run(prompt, interactive=interactive_mode)
             print(result)
         else:
             parser.print_help()

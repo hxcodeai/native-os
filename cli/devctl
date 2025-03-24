@@ -132,9 +132,13 @@ class DevCTL:
                     text=True
                 )
             else:
-                # Execute other agent types normally
+                # Execute other agent types in non-interactive mode
+                cmd = ["python3", agent_path, user_input]
+                # Pass non-interactive flag if supported by this agent type
+                # We're intentionally NOT setting --interactive so it defaults to non-interactive mode
+                    
                 result = subprocess.run(
-                    ["python3", agent_path, user_input],
+                    cmd,
                     env=env,
                     capture_output=True,
                     text=True

@@ -1,0 +1,1 @@
+Error: Failed to get response from OpenAI. Status code: 400
