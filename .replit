@@ -1,0 +1,51 @@
+modules = ["python-3.11"]
+
+[nix]
+channel = "stable-24_05"
+
+[workflows]
+runButton = "Project"
+
+[[workflows.workflow]]
+name = "Project"
+mode = "parallel"
+author = "agent"
+
+[[workflows.workflow.tasks]]
+task = "workflow.run"
+args = "NativeOS_Setup"
+
+[[workflows.workflow.tasks]]
+task = "workflow.run"
+args = "native_os_check"
+
+[[workflows.workflow]]
+name = "NativeOS_Setup"
+author = "agent"
+
+[workflows.workflow.metadata]
+agentRequireRestartOnSave = false
+
+[[workflows.workflow.tasks]]
+task = "packager.installForAll"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "bash bootstrap.sh"
+
+[[workflows.workflow]]
+name = "native_os_check"
+author = "agent"
+
+[workflows.workflow.metadata]
+agentRequireRestartOnSave = false
+
+[[workflows.workflow.tasks]]
+task = "packager.installForAll"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "find . -type f | grep -v node_modules | sort"
+
+[deployment]
+run = ["sh", "-c", "bash bootstrap.sh"]

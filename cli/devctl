@@ -1,0 +1,185 @@
+#!/usr/bin/env python3
+
+import os
+import sys
+import json
+import time
+import logging
+import argparse
+import subprocess
+from datetime import datetime
+from rich.console import Console
+from rich.panel import Panel
+from rich.markdown import Markdown
+
+# Setup logging
+log_dir = os.path.expanduser("~/.nativeos/logs")
+os.makedirs(log_dir, exist_ok=True)
+log_file = os.path.join(log_dir, "devctl.log")
+logging.basicConfig(
+    filename=log_file,
+    level=logging.INFO,
+    format='%(asctime)s - %(levelname)s - %(message)s'
+)
+
+# Setup rich console for output formatting
+console = Console()
+
+class DevCTL:
+    def __init__(self):
+        self.project_root = self._find_project_root()
+        self.agents_dir = os.path.join(self.project_root, "agents")
+        self.openai_key = os.getenv("OPENAI_API_KEY")
+        self.use_local_model = self.openai_key is None
+        
+        # Define agent mappings
+        self.agent_mappings = {
+            "code": os.path.join(self.agents_dir, "code-agent.py"),
+            "infra": os.path.join(self.agents_dir, "infra-agent.py"),
+            "doc": os.path.join(self.agents_dir, "doc-agent.py"),
+            "self-optimize": os.path.join(self.project_root, "evolver/self_optimize.py"),
+            "memory": os.path.join(self.project_root, "memory/memory_query.py"),
+            "init-memory": os.path.join(self.project_root, "memory/init_memory.py")
+        }
+    
+    def _find_project_root(self):
+        """Find the root directory of the Native OS project."""
+        # Start from the current directory and traverse upward
+        current_dir = os.path.dirname(os.path.abspath(__file__))
+        
+        # If we're in the cli directory, go up one level
+        if os.path.basename(current_dir) == "cli":
+            return os.path.dirname(current_dir)
+        
+        return current_dir
+    
+    def _determine_agent(self, user_input):
+        """Determine which agent to use based on the user input."""
+        user_input_lower = user_input.lower()
+        
+        # Direct command matches
+        if user_input_lower == "self-optimize":
+            return "self-optimize"
+        if user_input_lower == "init-memory" or user_input_lower.startswith("initialize memory"):
+            return "init-memory"
+        if user_input_lower.startswith("memory:") or user_input_lower.startswith("remember:"):
+            # Extract the actual query by removing the prefix
+            parts = user_input.split(":", 1)
+            if len(parts) > 1:
+                return "memory"
+        
+        # Keyword matching
+        if any(word in user_input_lower for word in ["create", "generate", "write", "code", "script", "app", "application"]):
+            return "code"
+        elif any(word in user_input_lower for word in ["deploy", "server", "aws", "cloud", "docker", "kubernetes", "infrastructure"]):
+            return "infra"
+        elif any(word in user_input_lower for word in ["document", "readme", "documentation", "explain", "help"]):
+            return "doc"
+        elif any(word in user_input_lower for word in ["search codebase", "recall", "remember", "find in code", "lookup", "search memory"]):
+            return "memory"
+            
+        # Default to code agent if no match
+        return "code"
+    
+    def _run_agent(self, agent_type, user_input):
+        """Run the appropriate agent with the user input."""
+        agent_path = self.agent_mappings.get(agent_type)
+        
+        if not agent_path:
+            console.print(f"[bold red]Error:[/bold red] Agent type '{agent_type}' not found.")
+            logging.error(f"Agent type '{agent_type}' not found")
+            return
+        
+        # Check if agent exists
+        if not os.path.exists(agent_path):
+            console.print(f"[bold red]Error:[/bold red] Agent script not found at {agent_path}")
+            logging.error(f"Agent script not found at {agent_path}")
+            return
+        
+        # Prepare environment for the agent
+        env = os.environ.copy()
+        env["NATIVE_OS_LOCAL_MODEL"] = "1" if self.use_local_model else "0"
+        
+        # Log the agent execution
+        logging.info(f"Running agent: {agent_type} with input: {user_input}")
+        
+        try:
+            # Execute the agent script
+            result = subprocess.run(
+                ["python3", agent_path, user_input],
+                env=env,
+                capture_output=True,
+                text=True
+            )
+            
+            # Handle output
+            if result.returncode == 0:
+                self._display_output(result.stdout, agent_type)
+            else:
+                console.print(f"[bold red]Error running {agent_type} agent:[/bold red]")
+                console.print(result.stderr)
+                logging.error(f"Error running {agent_type} agent: {result.stderr}")
+        except Exception as e:
+            console.print(f"[bold red]Exception running agent:[/bold red] {str(e)}")
+            logging.exception("Exception running agent")
+    
+    def _display_output(self, output, agent_type):
+        """Display the agent output with rich formatting."""
+        try:
+            # Try to parse as JSON
+            data = json.loads(output)
+            
+            # Display title
+            title = f"📘 {agent_type.upper()} AGENT RESPONSE"
+            
+            # Handle different output formats
+            if "content" in data:
+                console.print(Panel(Markdown(data["content"]), title=title))
+            elif "message" in data:
+                console.print(Panel(Markdown(data["message"]), title=title))
+            else:
+                console.print(Panel(str(data), title=title))
+        except json.JSONDecodeError:
+            # If not JSON, display as plain text or markdown
+            title = f"📘 {agent_type.upper()} AGENT RESPONSE"
+            console.print(Panel(Markdown(output), title=title))
+    
+    def run(self, user_input):
+        """Main entry point to process user input and run appropriate agent."""
+        # Log the request
+        logging.info(f"Processing input: {user_input}")
+        
+        # Determine agent to use
+        agent_type = self._determine_agent(user_input)
+        logging.info(f"Selected agent: {agent_type}")
+        
+        # Run the agent
+        self._run_agent(agent_type, user_input)
+
+def main():
+    parser = argparse.ArgumentParser(description="Native OS Development Control CLI")
+    parser.add_argument("command", nargs="+", help="The command or query to process")
+    args = parser.parse_args()
+    
+    # Join all arguments as the user input
+    user_input = " ".join(args.command)
+    
+    # Create DevCTL instance and run
+    devctl = DevCTL()
+    devctl.run(user_input)
+
+if __name__ == "__main__":
+    # Show banner
+    console.print(
+        Panel.fit(
+            "[bold blue]Native OS DevCTL[/bold blue] - AI-powered development assistant",
+            border_style="blue"
+        )
+    )
+    
+    if len(sys.argv) < 2:
+        console.print("[bold yellow]Please provide a command or query.[/bold yellow]")
+        console.print("Example: [green]devctl create a flask api[/green]")
+        sys.exit(1)
+    
+    main()
