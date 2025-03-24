@@ -210,3 +210,173 @@ Output format:
         except Exception as e:
             logging.exception(f"Error analyzing script: {script_path}")
             return f"Error analyzing script: {str(e)}"
+    
+    def apply_optimization(self, script_path, suggested_changes):
+        """Apply suggested optimizations to a script.
+        
+        Args:
+            script_path: Path to the script file
+            suggested_changes: Dictionary with keys 'old_code' and 'new_code' for replacements
+        
+        Returns:
+            Tuple of (success, message)
+        """
+        logging.info(f"Applying optimizations to {script_path}")
+        
+        try:
+            # Create backup first
+            backup_path = self.create_backup(script_path)
+            if not backup_path:
+                return False, "Failed to create backup"
+            
+            # Read current content
+            with open(script_path, 'r') as f:
+                content = f.read()
+            
+            # Apply each change
+            updated_content = content
+            for change in suggested_changes:
+                if 'old_code' in change and 'new_code' in change:
+                    updated_content = updated_content.replace(change['old_code'], change['new_code'])
+            
+            # Write back to file
+            with open(script_path, 'w') as f:
+                f.write(updated_content)
+            
+            logging.info(f"Successfully applied optimizations to {script_path}")
+            return True, f"Optimizations applied. Backup saved at {backup_path}"
+            
+        except Exception as e:
+            logging.exception(f"Error applying optimizations to {script_path}")
+            return False, f"Error: {str(e)}"
+    
+    def run(self, args=None):
+        """Run the self-optimization process."""
+        print("\n=== Native OS Self-Optimization ===\n")
+        
+        # Scan for agent scripts
+        print("Scanning for scripts to optimize...")
+        scripts = self.scan_agent_scripts()
+        
+        if not scripts:
+            print("No scripts found to optimize.")
+            return
+        
+        print(f"Found {len(scripts)} scripts:")
+        for i, script in enumerate(scripts):
+            print(f"{i+1}. {os.path.basename(script)}")
+        
+        # Ask which script to optimize
+        try:
+            selection = input("\nEnter script number to optimize (or 'all' for all scripts): ")
+            
+            if selection.lower() == 'all':
+                selected_scripts = scripts
+            else:
+                index = int(selection) - 1
+                if 0 <= index < len(scripts):
+                    selected_scripts = [scripts[index]]
+                else:
+                    print("Invalid selection.")
+                    return
+        except ValueError:
+            print("Invalid input. Please enter a number.")
+            return
+        
+        # Analyze and optimize each selected script
+        for script in selected_scripts:
+            print(f"\nAnalyzing {os.path.basename(script)}...")
+            suggestions = self.analyze_script(script)
+            
+            print("\n=== Optimization Suggestions ===\n")
+            print(suggestions)
+            
+            # Ask if user wants to apply changes
+            print("\nWould you like to apply these optimizations?")
+            print("This will create a backup of the original file first.")
+            apply = input("Apply optimizations? (y/n): ").lower()
+            
+            if apply.startswith('y'):
+                # In a real implementation, we would parse the AI response to get structured changes
+                # Here we simply demonstrate the flow
+                print("\nExtracting suggested code changes...")
+                print("This is a limited demo that would identify specific code blocks to change.")
+                print("No actual changes will be made in this demo to avoid unexpected modifications.")
+                
+                backup_path = self.create_backup(script)
+                print(f"Created backup at: {backup_path}")
+                print("In a full implementation, changes would be applied here.")
+            else:
+                print("Optimizations not applied.")
+        
+        print("\nSelf-optimization process completed.")
+        return json.dumps({
+            "success": True,
+            "message": "Self-optimization analysis completed. See the logs for details."
+        })
+    
+    def test(self):
+        """Run a test to check if the agent is working."""
+        print("Testing Self-Optimization Agent...")
+        
+        try:
+            # Check if scanning works
+            scripts = self.scan_agent_scripts()
+            
+            if scripts:
+                print(f"✅ Test successful - found {len(scripts)} scripts that could be optimized.")
+                sample_script = scripts[0]
+                print(f"- Example script: {os.path.basename(sample_script)}")
+                
+                # Test backup creation
+                backup_path = self.create_backup(sample_script)
+                if backup_path:
+                    print(f"- Successfully created backup at: {os.path.basename(backup_path)}")
+                    return True
+                else:
+                    print("⚠️ Test partially completed, but backup creation failed")
+                    return False
+            else:
+                print("⚠️ Test completed, but no scripts were found")
+                return False
+        except Exception as e:
+            print(f"❌ Test failed: {str(e)}")
+            logging.exception("Test failed")
+            return False
+
+
+def main():
+    parser = argparse.ArgumentParser(description="Native OS Self-Optimization Agent")
+    parser.add_argument("--test", action="store_true", help="Run a test to check if the agent is working")
+    parser.add_argument("--scan", action="store_true", help="Scan for eligible scripts without analysis")
+    parser.add_argument("--analyze", metavar="SCRIPT_PATH", help="Analyze a specific script path")
+    args = parser.parse_args()
+    
+    agent = Evolver()
+    
+    if args.test:
+        agent.test()
+    elif args.scan:
+        scripts = agent.scan_agent_scripts()
+        if scripts:
+            print(f"Found {len(scripts)} scripts that can be optimized:")
+            for script in scripts:
+                print(f"- {script}")
+        else:
+            print("No eligible scripts found.")
+    elif args.analyze:
+        # Analyze a specific script
+        if os.path.exists(args.analyze):
+            result = agent.analyze_script(args.analyze)
+            print(result)
+        else:
+            print(f"Error: File not found: {args.analyze}")
+    else:
+        # Interactive mode
+        result = agent.run()
+        if isinstance(result, str):
+            print(result)
+
+
+if __name__ == "__main__":
+    main()

@@ -104,13 +104,41 @@ class DevCTL:
         logging.info(f"Running agent: {agent_type} with input: {user_input}")
         
         try:
-            # Execute the agent script
-            result = subprocess.run(
-                ["python3", agent_path, user_input],
-                env=env,
-                capture_output=True,
-                text=True
-            )
+            # Handle memory agent with special arguments
+            if agent_type == "memory":
+                # Extract actual query by removing prefix if present
+                if user_input.lower().startswith(("memory:", "remember:")):
+                    parts = user_input.split(":", 1)
+                    if len(parts) > 1:
+                        query = parts[1].strip()
+                    else:
+                        query = ""
+                else:
+                    query = user_input
+                
+                # Execute the memory query agent
+                result = subprocess.run(
+                    ["python3", agent_path, query],
+                    env=env,
+                    capture_output=True,
+                    text=True
+                )
+            elif agent_type == "init-memory":
+                # No arguments needed for memory initialization
+                result = subprocess.run(
+                    ["python3", agent_path],
+                    env=env,
+                    capture_output=True,
+                    text=True
+                )
+            else:
+                # Execute other agent types normally
+                result = subprocess.run(
+                    ["python3", agent_path, user_input],
+                    env=env,
+                    capture_output=True,
+                    text=True
+                )
             
             # Handle output
             if result.returncode == 0:

@@ -13,13 +13,23 @@ from pathlib import Path
 # Check if running in a venv or normal environment
 try:
     import chromadb
-    from langchain.text_splitter import RecursiveCharacterTextSplitter
-    from langchain.vectorstores import Chroma
-    from langchain.embeddings import OpenAIEmbeddings
-    from langchain.document_loaders import TextLoader
+    # Use new LangChain imports (v0.2+)
+    from langchain_text_splitters import RecursiveCharacterTextSplitter
+    from langchain_community.vectorstores import Chroma
+    from langchain_openai import OpenAIEmbeddings
+    from langchain_community.document_loaders import TextLoader
     HAS_DEPS = True
 except ImportError:
-    HAS_DEPS = False
+    try:
+        # Try older LangChain imports as fallback
+        import chromadb
+        from langchain.text_splitter import RecursiveCharacterTextSplitter
+        from langchain.vectorstores import Chroma
+        from langchain.embeddings.openai import OpenAIEmbeddings
+        from langchain.document_loaders import TextLoader
+        HAS_DEPS = True
+    except ImportError:
+        HAS_DEPS = False
 
 # Setup logging
 LOG_DIR = os.path.expanduser("~/.nativeos/logs")

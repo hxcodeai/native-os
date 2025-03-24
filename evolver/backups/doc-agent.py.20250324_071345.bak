@@ -159,7 +159,7 @@ Always format documentation in clean Markdown with proper syntax highlighting fo
                 for file_path, content in files_content.items():
                     # Add first 100 lines or less of each file
                     lines = content.split('\n')[:100]
-                    context += f"## File: {file_path}\n```\n" + "\n".join(lines) + "\n```\n\n"
+                    context += f"## File: {file_path}\n```\n{'\n'.join(lines)}\n```\n\n"
         
         # Enhance the prompt for better documentation generation
         enhanced_prompt = f"""
@@ -209,78 +209,54 @@ Always format documentation in clean Markdown with proper syntax highlighting fo
         logging.info(f"Saved documentation to: {full_path}")
         return full_path
     
-    def run(self, prompt, interactive=True):
+    def run(self, prompt):
         """Run the documentation generation process."""
+        # Ask for project context
+        print("\nDo you want to include project files as context? (y/n): ", end="")
+        include_context = input().lower().startswith('y')
+        
         project_dir = None
-        
-        # Interactive mode is used when the script is called directly
-        if interactive:
-            try:
-                # Ask for project context
-                print("\nDo you want to include project files as context? (y/n): ", end="")
-                include_context = input().lower().startswith('y')
-                
-                if include_context:
-                    print("\nEnter project directory path (leave empty for current directory): ", end="")
-                    project_dir = input().strip()
-                    if not project_dir:
-                        project_dir = os.getcwd()
-            except EOFError:
-                # If we can't get input (like when called from CLI), use non-interactive mode
-                interactive = False
-                logging.info("Input not available, switching to non-interactive mode")
-        
-        # Non-interactive mode automatically includes project context from current directory
-        if not interactive:
-            project_dir = os.getcwd()
+        if include_context:
+            print("\nEnter project directory path (leave empty for current directory): ", end="")
+            project_dir = input().strip()
+            if not project_dir:
+                project_dir = os.getcwd()
         
         # Generate documentation
         documentation = self.generate_documentation(prompt, project_dir)
         
-        # Interactive mode shows preview and asks for confirmation
-        if interactive:
-            # Preview the documentation
-            print("\n=== Documentation Preview ===\n")
-            preview_lines = documentation.split('\n')[:20]
-            for line in preview_lines:
-                print(line)
-            if len(documentation.split('\n')) > 20:
-                print("...(content truncated for preview)...")
-            
-            # Ask for confirmation
-            print("\nSave this documentation? (y/n): ", end="")
-            confirm = input().lower()
-            if not confirm.startswith('y'):
-                print("Documentation not saved.")
-                return json.dumps({
-                    "success": False,
-                    "message": "Documentation generated but not saved (user canceled)"
-                })
-            
-            # Get filename
-            print("\nEnter filename (leave empty for auto-generated name): ", end="")
-            filename = input().strip()
-        else:
-            # Non-interactive mode automatically saves with a generated filename
-            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-            # Create a filename based on the first few words of the prompt
-            prompt_words = prompt.split()[:3]
-            prompt_part = "_".join(word.lower() for word in prompt_words if word.isalnum())
-            filename = f"{prompt_part}_{timestamp}.md"
+        # Preview the documentation
+        print("\n=== Documentation Preview ===\n")
+        preview_lines = documentation.split('\n')[:20]
+        for line in preview_lines:
+            print(line)
+        if len(documentation.split('\n')) > 20:
+            print("...(content truncated for preview)...")
+        
+        # Ask for confirmation
+        print("\nSave this documentation? (y/n): ", end="")
+        confirm = input().lower()
+        if not confirm.startswith('y'):
+            print("Documentation not saved.")
+            return json.dumps({
+                "success": False,
+                "message": "Documentation generated but not saved (user canceled)"
+            })
+        
+        # Get filename
+        print("\nEnter filename (leave empty for auto-generated name): ", end="")
+        filename = input().strip()
         
         # Save the documentation
         saved_path = self.save_documentation(documentation, filename)
         
-        if interactive:
-            print(f"\nSaved documentation to: {saved_path}")
+        print(f"\nSaved documentation to: {saved_path}")
         
         # Return result as JSON
-        content_preview = documentation[:500] + "..." if len(documentation) > 500 else documentation
         return json.dumps({
             "success": True,
             "message": f"Generated and saved documentation to {saved_path}",
-            "file": saved_path,
-            "content": content_preview
+            "file": saved_path
         })
     
     def test(self):
@@ -306,26 +282,20 @@ def main():
     parser = argparse.ArgumentParser(description="Native OS Documentation Agent")
     parser.add_argument("prompt", nargs="?", help="The documentation generation prompt")
     parser.add_argument("--test", action="store_true", help="Run a test to check if the agent is working")
-    parser.add_argument("--interactive", action="store_true", help="Run in interactive mode with user prompts")
     args = parser.parse_args()
     
     agent = DocAgent()
     
-    # Detect if we're being run from CLI pipe (non-interactive)
-    is_pipe = not sys.stdin.isatty() if hasattr(sys.stdin, 'isatty') else True
-    # Default to non-interactive mode when called from CLI unless explicitly requested
-    interactive_mode = args.interactive and not is_pipe
-    
     if args.test:
         agent.test()
     elif args.prompt:
-        result = agent.run(args.prompt, interactive=interactive_mode)
+        result = agent.run(args.prompt)
         print(result)
     else:
         # If no prompt is provided and not testing, read from stdin
         prompt = sys.stdin.read().strip()
         if prompt:
-            result = agent.run(prompt, interactive=interactive_mode)
+            result = agent.run(prompt)
             print(result)
         else:
             parser.print_help()

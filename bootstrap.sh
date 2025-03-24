@@ -42,11 +42,26 @@ install_dependencies() {
     
     # Update package lists
     log "Updating package lists..."
-    apt-get update
+    # Using pip to install Python dependencies since apt-get might not work in Replit
+    python3 -m pip install --upgrade pip
+    python3 -m pip install chromadb langchain-community langchain-openai openai requests rich
     
-    # Install core dependencies
-    log "Installing core packages..."
-    apt-get install -y zsh curl git python3 python3-pip nodejs npm
+    # Install optional dependencies if possible
+    if command -v npm &> /dev/null; then
+        npm install -g typescript @tauri-apps/cli
+    fi
+    
+    # Create necessary config directories
+    mkdir -p "$HOME/.config/bspwm"
+    mkdir -p "$HOME/.config/sxhkd"
+    mkdir -p "$HOME/.config/polybar"
+    
+    # Copy config files if they exist
+    if [ -d ".config" ]; then
+        cp -r ".config/"* "$HOME/.config/"
+        chmod +x "$HOME/.config/polybar/launch.sh" 2>/dev/null || true
+        chmod +x "$HOME/.config/bspwm/bspwmrc" 2>/dev/null || true
+    fi
     
     log "Dependencies installed successfully"
 }

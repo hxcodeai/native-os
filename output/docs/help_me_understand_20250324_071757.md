@@ -1,0 +1,1 @@
+Error: Could not connect to Ollama. Is it running? Error: HTTPConnectionPool(host='localhost', port=11434): Max retries exceeded with url: /api/generate (Caused by NewConnectionError('<urllib3.connection.HTTPConnection object at 0x7f4f4b06c890>: Failed to establish a new connection: [Errno 111] Connection refused'))
