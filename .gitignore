@@ -85,3 +85,6 @@ memory/embeddings/
 
 # Output files
 output/generated_*/
+
+# Attached assets
+attached_assets/
