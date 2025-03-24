@@ -1,0 +1,195 @@
+Here are **precise, structured prompts** you can copy into your **Replit AI Agent**, step-by-step, to build **Native OS** directly inside your Replit project.
+
+Each prompt is designed to:
+
+✅ Minimize back-and-forth  
+✅ Maximize build clarity  
+✅ Cover everything the agent needs to know  
+✅ Deliver clean, testable code  
+✅ Respect modular folder structure  
+✅ Set up Debian CLI-ready installs
+
+---
+
+## 🧠 PHASE 1: Project Scaffolding
+
+### 🔹 Prompt 1: Scaffold the Repo
+```bash
+You are building an AI-native Debian OS project called "Native OS" inside Replit. Create the following folder structure and placeholder files:
+
+- install.sh (installer for Debian systems)
+- bootstrap.sh (quick Replit setup script)
+- /cli/devctl (AI CLI script)
+- /ui/tauri-app/ (placeholder for Tauri + React app)
+- /agents/code-agent.py
+- /agents/infra-agent.py
+- /agents/doc-agent.py
+- /.config/bspwm/bspwmrc
+- /.config/sxhkd/sxhkdrc
+- /.config/polybar/config
+- /evolver/self_optimize.py
+- /memory/init_memory.py
+- README.md (basic instructions)
+
+Create the files and echo placeholders in each to confirm it's scaffolded correctly.
+```
+
+---
+
+## ⚙️ PHASE 2: Create `install.sh`
+
+### 🔹 Prompt 2: Write Modular Installer
+```bash
+Write a Bash script called install.sh for Native OS. When run on any Debian system, it should:
+
+1. Prompt the user to install Layer 1 (Core), Layer 2 (Automation), Layer 3 (Self-Evolving), or All
+2. If Layer 1 is selected:
+   - Install zsh, python3, docker, nodejs, npm, curl, git, sqlite3
+   - Setup CLI tool from /cli/devctl
+   - Install Ollama via script
+   - Install bspwm, sxhkd, polybar, rofi, picom
+   - Copy configs from .config into ~/.config
+3. If Layer 2 is selected:
+   - Install python packages: openai, langchain, chromadb, requests
+   - Setup /agents/ directory and test the code-agent
+4. If Layer 3 is selected:
+   - Set up /evolver and /memory scripts
+   - Create a `nativectl self-optimize` alias that runs evolver/self_optimize.py
+
+Add checks for root access, dependencies, and log everything to ~/.nativeos/logs/install.log
+```
+
+---
+
+## 💻 PHASE 3: Create `devctl` (AI CLI)
+
+### 🔹 Prompt 3: Build AI CLI
+```bash
+Write a Python script called devctl located in /cli/devctl.
+
+Features:
+- Accepts a natural language string as input (e.g., "create react app", "deploy to aws")
+- Routes the request to the appropriate agent script from /agents/
+- Uses OpenAI API by default, but falls back to local model (Ollama) if no key is found
+- Logs all inputs and outputs to ~/.nativeos/logs/devctl.log
+- Include safety confirmation before running destructive shell commands
+- Print agent responses with rich formatting
+```
+
+---
+
+## 🖥️ PHASE 4: Tauri UI Placeholder
+
+### 🔹 Prompt 4: Tauri UI Stub
+```bash
+Create a placeholder Tauri app in /ui/tauri-app/ with:
+
+- React frontend
+- xterm.js-based terminal panel
+- Chat panel that sends messages to devctl
+- Sidebar for file explorer (just placeholder now)
+- System status widget (RAM/CPU stubbed)
+
+This UI will be built later in full. Just scaffold the main.ts and basic React pages now.
+```
+
+---
+
+## 🧠 PHASE 5: Agent Scripts
+
+### 🔹 Prompt 5: Code Agent
+```bash
+Create code-agent.py in /agents/.
+
+It should:
+- Take a prompt like "write express backend for auth"
+- Use OpenAI to generate code
+- Save code to a file in /output or ./ based on the prompt
+- Print a preview and ask for confirmation before saving
+- Log actions to ~/.nativeos/logs/agent-code.log
+```
+
+---
+
+## 🔐 PHASE 6: Evolver
+
+### 🔹 Prompt 6: Self-Optimizer
+```bash
+Create a self_optimize.py script in /evolver/.
+
+It should:
+- Scan all agent scripts
+- Use GPT to suggest improvements or performance boosts
+- Generate diffs for approval
+- Write before/after versions and allow rollback
+- Log changes to ~/.nativeos/logs/evolver.log
+```
+
+---
+
+## 🧩 PHASE 7: Memory System
+
+### 🔹 Prompt 7: Memory Init
+```bash
+Create init_memory.py in /memory/.
+
+It should:
+- Scan project directory
+- Use OpenAI embeddings to embed all files
+- Store embeddings in a local ChromaDB instance
+- Allow `devctl` or agents to query memory for context
+- Save log to ~/.nativeos/logs/memory.log
+```
+
+---
+
+## 📦 PHASE 8: Replit Setup Script
+
+### 🔹 Prompt 8: Bootstrap Native OS in Replit
+```bash
+Write a script called bootstrap.sh that:
+
+1. Clones the latest GitHub repo if missing
+2. Installs dependencies in Replit: zsh, curl, git, python3, nodejs, pip
+3. Symlinks /cli/devctl to /usr/local/bin/devctl
+4. Prints onboarding message with example commands
+5. Logs everything to ~/.nativeos/logs/bootstrap.log
+```
+
+---
+
+## ✅ BONUS: README Prompt
+
+### 🔹 Prompt 9: Write README
+```bash
+Write a professional README.md for Native OS.
+
+It should:
+- Explain what Native OS is
+- Include features for each layer
+- Show how to install via:
+
+  git clone https://github.com/hxcodeai/native-os.git  
+  cd native-os && sudo ./install.sh
+
+- Show how to run:
+
+  devctl "create flask app"  
+  devctl deploy to aws
+
+- Mention system requirements
+```
+
+---
+
+## 🔚 Final Steps
+
+Once Replit runs these 9 prompts:
+✅ You’ll have the full project scaffolded  
+✅ Debian users can clone and run it  
+✅ Agents and CLI will be functional  
+✅ The OS will be self-expanding
+
+---
+
+Want these zipped or posted directly into your GitHub repo for immediate use?
