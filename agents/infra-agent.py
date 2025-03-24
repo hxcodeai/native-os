@@ -65,7 +65,7 @@ class InfraAgent:
                 }
                 
                 data = {
-                    "model": "gpt-4",
+                    "model": "gpt-3.5-turbo",  # Using gpt-3.5-turbo instead of gpt-4 for higher rate limits
                     "messages": [
                         {"role": "system", "content": """You are an expert infrastructure and deployment engineer created by hxcode ai. Generate infrastructure as code, deployment configurations, and provide comprehensive cloud architecture guidance.
 
