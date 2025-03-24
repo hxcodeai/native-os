@@ -1,1 +1,31 @@
-System update completed Mon 24 Mar 2025 08:14:01 AM UTC
+# Native OS Platform Independence Update
+
+This update removes all platform-specific dependencies and references from the Native OS codebase.
+
+## Changes Made
+
+1. Removed all configuration files specific to Replit environment
+2. Updated project metadata in pyproject.toml
+3. Ensured all agent code uses environment-agnostic paths
+4. Updated GitHub repository with clean commit messages
+5. Configured proper logging to ~/.nativeos/logs directory
+
+## Running Native OS
+
+The codebase is now completely platform-independent and will work in any standard Linux environment with:
+
+1. Python 3.8+ installed
+2. Required dependencies from pyproject.toml
+3. Optional API keys for OpenAI, Anthropic, and DeepSeek set as environment variables
+
+## Configuration
+
+Native OS can be configured to use different AI providers by setting the following environment variables:
+
+- OPENAI_API_KEY - for OpenAI API access
+- ANTHROPIC_API_KEY - for Claude API access
+- DEEPSEEK_API_KEY - for DeepSeek API access
+- NATIVE_OS_DEFAULT_PROVIDER - set to "openai", "anthropic", or "deepseek" (defaults to "openai")
+- NATIVE_OS_LOCAL_MODEL - set to "1" to use local Ollama model instead of remote APIs
+
+If no API keys are provided, the system will default to using local Ollama models.
