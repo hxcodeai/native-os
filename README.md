@@ -33,16 +33,10 @@ cd native-os && sudo ./install.sh
 
 ### Repository Maintenance
 
-To clean platform-specific references from the Git history:
+This repository has been cleaned to be platform-independent and can be cloned and used in any environment.
 
 ```bash
 # Clone the repository
 git clone https://github.com/hxcodeai/native-os.git
 cd native-os
-
-# Run the cleaning script
-./clean_history.sh
-
-# Force push the cleaned history
-git push -f origin main
 ```
