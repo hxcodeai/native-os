@@ -71,15 +71,31 @@ install_layer1() {
 install_layer2() {
     log "Installing Layer 2 (Automation)..."
     
+    # Install system dependencies for infrastructure tools
+    log "Installing infrastructure dependencies..."
+    apt-get update
+    apt-get install -y terraform ansible docker.io kubectl awscli
+
     # Install Python packages
     log "Installing Python packages..."
-    pip3 install openai langchain chromadb requests rich
+    pip3 install openai langchain chromadb requests rich langchain_text_splitters langchain_community langchain_openai deepseek-ai anthropic
     
-    # Setup and test code-agent
+    # Setup all agent scripts
     log "Setting up agent scripts..."
     chmod +x agents/code-agent.py
     chmod +x agents/infra-agent.py
     chmod +x agents/doc-agent.py
+    chmod +x agents/terraform-agent.py
+    chmod +x agents/ansible-agent.py
+    chmod +x agents/docker-agent.py
+    chmod +x agents/k8s-agent.py
+    
+    # Create infrastructure directories
+    log "Creating infrastructure directories..."
+    mkdir -p infra/terraform
+    mkdir -p infra/playbooks
+    mkdir -p infra/docker
+    mkdir -p infra/k8s
     
     log "Testing code-agent..."
     python3 agents/code-agent.py --test
@@ -112,7 +128,7 @@ run_installation() {
     echo "===== Native OS Installation ====="
     echo "Select installation layer:"
     echo "1) Layer 1 - Core (Window manager, CLI, basic utilities)"
-    echo "2) Layer 2 - Automation (AI agents, Python packages)"
+    echo "2) Layer 2 - Automation (AI agents, Infrastructure tools, Python packages)"
     echo "3) Layer 3 - Self-Evolving (Evolver, Memory system)"
     echo "4) All Layers (Complete installation)"
     echo "5) Quit"
