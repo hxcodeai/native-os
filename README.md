@@ -29,3 +29,20 @@ Native OS is an AI-native Debian operating system with integrated AI automation,
 ```bash
 git clone https://github.com/hxcodeai/native-os.git
 cd native-os && sudo ./install.sh
+```
+
+### Repository Maintenance
+
+To clean platform-specific references from the Git history:
+
+```bash
+# Clone the repository
+git clone https://github.com/hxcodeai/native-os.git
+cd native-os
+
+# Run the cleaning script
+./clean_history.sh
+
+# Force push the cleaned history
+git push -f origin main
+```
