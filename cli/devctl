@@ -39,7 +39,12 @@ class DevCTL:
             "doc": os.path.join(self.agents_dir, "doc-agent.py"),
             "self-optimize": os.path.join(self.project_root, "evolver/self_optimize.py"),
             "memory": os.path.join(self.project_root, "memory/memory_query.py"),
-            "init-memory": os.path.join(self.project_root, "memory/init_memory.py")
+            "init-memory": os.path.join(self.project_root, "memory/init_memory.py"),
+            "terraform": os.path.join(self.agents_dir, "terraform-agent.py"),
+            "ansible": os.path.join(self.agents_dir, "ansible-agent.py"),
+            "docker": os.path.join(self.agents_dir, "docker-agent.py"),
+            "k8s": os.path.join(self.agents_dir, "k8s-agent.py"),
+            "kubernetes": os.path.join(self.agents_dir, "k8s-agent.py")
         }
     
     def _find_project_root(self):
@@ -68,10 +73,28 @@ class DevCTL:
             if len(parts) > 1:
                 return "memory"
         
-        # Keyword matching
+        # Infrastructure agent-specific routing
+        if ("terraform" in user_input_lower or 
+            any(word in user_input_lower for word in ["provision", "infrastructure as code", "iac"]) and
+            any(word in user_input_lower for word in ["aws", "azure", "gcp", "cloud"])):
+            return "terraform"
+            
+        if ("ansible" in user_input_lower or 
+            any(word in user_input_lower for word in ["configure", "setup", "install on", "provision"]) and
+            any(word in user_input_lower for word in ["server", "host", "machine", "remote"])):
+            return "ansible"
+            
+        if ("docker" in user_input_lower or 
+            any(word in user_input_lower for word in ["container", "containerize", "image", "dockerfile"])):
+            return "docker"
+            
+        if any(word in user_input_lower for word in ["kubernetes", "k8s", "cluster", "pod", "deployment", "service", "ingress"]):
+            return "k8s"
+        
+        # General keyword matching
         if any(word in user_input_lower for word in ["create", "generate", "write", "code", "script", "app", "application"]):
             return "code"
-        elif any(word in user_input_lower for word in ["deploy", "server", "aws", "cloud", "docker", "kubernetes", "infrastructure"]):
+        elif any(word in user_input_lower for word in ["deploy", "server", "aws", "cloud", "infrastructure"]):
             return "infra"
         elif any(word in user_input_lower for word in ["document", "readme", "documentation", "explain", "help"]):
             return "doc"
