@@ -2,7 +2,7 @@
 
 Native OS is an AI-native Debian operating system with integrated AI automation, intelligent CLI tools, and self-evolving capabilities. It's designed to enhance developer productivity and provide a seamless interface between natural language intent and system operations.
 
-**© 2025 hxcode ai. Released under MIT License.**
+**© 2025 hxcode ai. All Rights Reserved. Proprietary Software.**
 
 ## Features
 

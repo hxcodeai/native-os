@@ -3,7 +3,7 @@
 # Native OS - Installation Script
 # This script will install Native OS on a Debian-based system
 # Copyright (c) 2025 hxcode ai
-# Released under MIT License
+# Proprietary software - All Rights Reserved
 
 # Log file setup
 LOG_DIR="$HOME/.nativeos/logs"
