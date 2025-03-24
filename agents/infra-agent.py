@@ -23,8 +23,20 @@ logging.basicConfig(
 
 class InfraAgent:
     def __init__(self):
-        self.api_key = os.getenv("OPENAI_API_KEY")
-        self.use_local_model = os.getenv("NATIVE_OS_LOCAL_MODEL", "0") == "1" or self.api_key is None
+        # API keys for different providers
+        self.openai_api_key = os.getenv("OPENAI_API_KEY")
+        self.anthropic_api_key = os.getenv("ANTHROPIC_API_KEY")
+        self.deepseek_api_key = os.getenv("DEEPSEEK_API_KEY")
+        
+        # Default to OpenAI if available
+        self.default_provider = os.getenv("NATIVE_OS_DEFAULT_PROVIDER", "openai").lower()
+        
+        # Check if we should use local model
+        self.use_local_model = os.getenv("NATIVE_OS_LOCAL_MODEL", "0") == "1" or (
+            self.openai_api_key is None and 
+            self.anthropic_api_key is None and 
+            self.deepseek_api_key is None
+        )
         
         # Configure output directory
         self.output_dir = os.path.join(os.getcwd(), "output", "infra")
@@ -52,22 +64,9 @@ class InfraAgent:
             logging.exception("Error connecting to Ollama")
             return f"Error: Could not connect to Ollama. Is it running? Error: {str(e)}"
     
-    def _get_openai_response(self, prompt):
-        """Get response from OpenAI API with retry logic for rate limits."""
-        max_retries = 3
-        retry_delay = 2  # Initial delay in seconds
-        
-        for attempt in range(max_retries):
-            try:
-                headers = {
-                    "Authorization": f"Bearer {self.api_key}",
-                    "Content-Type": "application/json"
-                }
-                
-                data = {
-                    "model": "gpt-3.5-turbo",  # Using gpt-3.5-turbo instead of gpt-4 for higher rate limits
-                    "messages": [
-                        {"role": "system", "content": """You are an expert infrastructure and deployment engineer created by hxcode ai. Generate infrastructure as code, deployment configurations, and provide comprehensive cloud architecture guidance.
+    def _get_system_prompt(self):
+        """Get the standard system prompt for infrastructure generation."""
+        return """You are an expert infrastructure and deployment engineer created by hxcode ai. Generate infrastructure as code, deployment configurations, and provide comprehensive cloud architecture guidance.
 
 Your capabilities:
 1. Write robust, production-ready infrastructure code and deployment scripts
@@ -122,7 +121,24 @@ Guidelines:
 Avoid:
 - Overly complex solutions when simpler ones will suffice
 - Deprecated or outdated services/practices
-- Insecure configurations or setups that expose vulnerabilities"""},
+- Insecure configurations or setups that expose vulnerabilities"""
+    
+    def _get_openai_response(self, prompt):
+        """Get response from OpenAI API with retry logic for rate limits."""
+        max_retries = 3
+        retry_delay = 2  # Initial delay in seconds
+        
+        for attempt in range(max_retries):
+            try:
+                headers = {
+                    "Authorization": f"Bearer {self.openai_api_key}",
+                    "Content-Type": "application/json"
+                }
+                
+                data = {
+                    "model": "gpt-3.5-turbo",  # Using gpt-3.5-turbo instead of gpt-4 for higher rate limits
+                    "messages": [
+                        {"role": "system", "content": self._get_system_prompt()},
                         {"role": "user", "content": prompt}
                     ],
                     "temperature": 0.7
@@ -147,13 +163,119 @@ Avoid:
                         logging.error(f"OpenAI rate limit exceeded after {max_retries} attempts: {response.text}")
                         return f"Error: OpenAI rate limit exceeded. Please try again later."
                 else:
-                    logging.error(f"OpenAI error: {response.text}")
-                    return f"Error: Failed to get response from OpenAI. Status code: {response.status_code}"
+                    error_details = response.text
+                    logging.error(f"OpenAI error: {error_details}")
+                    # Print detailed error message for debugging
+                    print(f"\nOpenAI API Error (Status {response.status_code}):")
+                    print(f"Response: {error_details}")
+                    return f"Error: Failed to get response from OpenAI. Status code: {response.status_code}. Details: {error_details}"
             except Exception as e:
                 logging.exception("Error connecting to OpenAI")
                 return f"Error: {str(e)}"
         
         return "Error: Maximum retries exceeded when contacting OpenAI API."
+        
+    def _get_claude_response(self, prompt):
+        """Get response from Claude (Anthropic) API with retry logic."""
+        max_retries = 3
+        retry_delay = 2  # Initial delay in seconds
+        
+        for attempt in range(max_retries):
+            try:
+                headers = {
+                    "x-api-key": f"{self.anthropic_api_key}",
+                    "anthropic-version": "2023-06-01",
+                    "Content-Type": "application/json"
+                }
+                
+                # Create the system prompt and user message
+                system_prompt = self._get_system_prompt()
+                
+                data = {
+                    "model": "claude-3-haiku-20240307",  # Use the latest Claude model
+                    "max_tokens": 4000,
+                    "temperature": 0.7,
+                    "system": system_prompt,
+                    "messages": [
+                        {"role": "user", "content": prompt}
+                    ]
+                }
+                
+                response = requests.post(
+                    "https://api.anthropic.com/v1/messages",
+                    headers=headers,
+                    json=data
+                )
+                
+                if response.status_code == 200:
+                    return response.json()["content"][0]["text"]
+                elif response.status_code == 429:
+                    # Rate limit hit - implement exponential backoff
+                    if attempt < max_retries - 1:  # Don't sleep on the last attempt
+                        sleep_time = retry_delay * (2 ** attempt)
+                        logging.warning(f"Claude rate limit hit. Retrying in {sleep_time} seconds...")
+                        time.sleep(sleep_time)
+                        continue
+                    else:
+                        logging.error(f"Claude rate limit exceeded after {max_retries} attempts: {response.text}")
+                        return f"Error: Claude rate limit exceeded. Please try again later."
+                else:
+                    logging.error(f"Claude error: {response.text}")
+                    return f"Error: Failed to get response from Claude. Status code: {response.status_code}"
+            except Exception as e:
+                logging.exception("Error connecting to Claude API")
+                return f"Error: {str(e)}"
+        
+        return "Error: Maximum retries exceeded when contacting Claude API."
+        
+    def _get_deepseek_response(self, prompt):
+        """Get response from DeepSeek API with retry logic."""
+        max_retries = 3
+        retry_delay = 2  # Initial delay in seconds
+        
+        for attempt in range(max_retries):
+            try:
+                headers = {
+                    "Authorization": f"Bearer {self.deepseek_api_key}",
+                    "Content-Type": "application/json"
+                }
+                
+                data = {
+                    "model": "deepseek-chat",  # Use DeepSeek chat model for infrastructure
+                    "messages": [
+                        {"role": "system", "content": self._get_system_prompt()},
+                        {"role": "user", "content": prompt}
+                    ],
+                    "temperature": 0.7,
+                    "max_tokens": 4000
+                }
+                
+                response = requests.post(
+                    "https://api.deepseek.com/v1/chat/completions",  
+                    headers=headers,
+                    json=data
+                )
+                
+                if response.status_code == 200:
+                    return response.json()["choices"][0]["message"]["content"]
+                elif response.status_code == 429:
+                    # Rate limit hit - implement exponential backoff
+                    if attempt < max_retries - 1:  # Don't sleep on the last attempt
+                        sleep_time = retry_delay * (2 ** attempt)
+                        logging.warning(f"DeepSeek rate limit hit. Retrying in {sleep_time} seconds...")
+                        time.sleep(sleep_time)
+                        continue
+                    else:
+                        logging.error(f"DeepSeek rate limit exceeded after {max_retries} attempts: {response.text}")
+                        return f"Error: DeepSeek rate limit exceeded. Please try again later."
+                else:
+                    logging.error(f"DeepSeek error: {response.text}")
+                    return f"Error: Failed to get response from DeepSeek. Status code: {response.status_code}"
+            except Exception as e:
+                logging.exception("Error connecting to DeepSeek API")
+                return f"Error: {str(e)}"
+        
+        return "Error: Maximum retries exceeded when contacting DeepSeek API."
     
     def generate_infra(self, prompt):
         """Generate infrastructure code/guidance based on the given prompt."""
@@ -189,8 +311,31 @@ Avoid:
             logging.info("Using local Ollama model")
             response = self._get_ollama_response(enhanced_prompt)
         else:
-            logging.info("Using OpenAI API")
-            response = self._get_openai_response(enhanced_prompt)
+            # Choose AI provider based on default_provider setting and available API keys
+            provider = self.default_provider
+            
+            if provider == "openai" and self.openai_api_key:
+                logging.info("Using OpenAI API")
+                response = self._get_openai_response(enhanced_prompt)
+            elif provider == "claude" and self.anthropic_api_key:
+                logging.info("Using Claude API")
+                response = self._get_claude_response(enhanced_prompt)
+            elif provider == "deepseek" and self.deepseek_api_key:
+                logging.info("Using DeepSeek API")
+                response = self._get_deepseek_response(enhanced_prompt)
+            else:
+                # Fallback to any available provider
+                if self.openai_api_key:
+                    logging.info("Falling back to OpenAI API")
+                    response = self._get_openai_response(enhanced_prompt)
+                elif self.anthropic_api_key:
+                    logging.info("Falling back to Claude API")
+                    response = self._get_claude_response(enhanced_prompt)
+                elif self.deepseek_api_key:
+                    logging.info("Falling back to DeepSeek API")
+                    response = self._get_deepseek_response(enhanced_prompt)
+                else:
+                    return "Error: No AI provider available. Please set at least one API key for OpenAI, Claude, or DeepSeek."
         
         return response
     
