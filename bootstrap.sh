@@ -1,7 +1,7 @@
 #!/bin/bash
 
-# Native OS - Bootstrap Script for Replit
-# This script sets up Native OS in a Replit environment
+# Native OS - Bootstrap Script
+# This script sets up Native OS in a development environment
 # Copyright (c) 2025 hxcode ai
 # Released under MIT License
 
@@ -38,13 +38,21 @@ check_repo() {
 
 # Function to install dependencies
 install_dependencies() {
-    log "Installing dependencies for Replit environment..."
+    log "Installing dependencies..."
     
     # Update package lists
     log "Updating package lists..."
-    # Using pip to install Python dependencies since apt-get might not work in Replit
-    python3 -m pip install --upgrade pip
-    python3 -m pip install chromadb langchain-community langchain-openai openai requests rich
+    
+    # Check for Python3
+    if command -v python3 &> /dev/null; then
+        log "Python3 found, installing dependencies..."
+        python3 -m pip install --upgrade pip
+        python3 -m pip install chromadb langchain-community langchain-openai openai requests rich
+    else
+        log "Python3 not found. Please install Python 3.8+ before continuing."
+        echo "ERROR: Python3 is required but not found on this system."
+        echo "Please install Python 3.8+ and try again."
+    fi
     
     # Install optional dependencies if possible
     if command -v npm &> /dev/null; then
@@ -73,8 +81,16 @@ setup_cli() {
     # Make devctl executable
     chmod +x cli/devctl
     
-    # Symlink to /usr/local/bin for global access
-    ln -sf "$(pwd)/cli/devctl" /usr/local/bin/devctl
+    # Symlink to /usr/local/bin for global access if we have permission
+    # Otherwise, suggest adding to the user's PATH
+    if [ -w /usr/local/bin ]; then
+        log "Creating symlink in /usr/local/bin..."
+        ln -sf "$(pwd)/cli/devctl" /usr/local/bin/devctl
+    else
+        log "No write permission to /usr/local/bin. Adding to PATH is recommended."
+        echo "NOTE: To use devctl from anywhere, add this directory to your PATH:"
+        echo "      export PATH=\"\$PATH:$(pwd)/cli\""
+    fi
     
     log "CLI tool setup complete"
 }
@@ -83,7 +99,7 @@ setup_cli() {
 print_welcome() {
     echo "
     =============================================
-    🚀 Native OS is ready to use in Replit! 🚀
+    🚀 Native OS is ready to use! 🚀
     =============================================
     
     Example commands:

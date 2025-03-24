@@ -65,7 +65,7 @@ class CodeAgent:
     
     def _get_system_prompt(self):
         """Get the standard system prompt for code generation."""
-        return """You are an expert code generation assistant created by hxcode ai. Generate complete, production-ready code based on user requests.
+        return """Expert code generation system by hxcode ai. Generate complete, production-ready code based on user requests.
 
 Your capabilities:
 1. Write robust, efficient, and well-documented code
